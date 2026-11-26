@@ -1,7 +1,6 @@
 # 构建产物
 android/build/
 build/
-*.apk
 *.idsig
 *.keystore
 

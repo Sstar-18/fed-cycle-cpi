@@ -10,6 +10,12 @@
   <img src="docs/trend.png" width="300" alt="CPI 趋势">
 </p>
 
+## 直接安装
+
+- 最新安装包：[`dist/fed-cycle-cpi-v1.8.apk`](dist/fed-cycle-cpi-v1.8.apk)（394 KB，minSdk 24 / targetSdk 30，自签名）
+- 手机浏览器打开上面的链接下载，点安装，未知来源允许一次即可
+- 自签名包，换机或跨版本覆盖装不上时先卸载旧版
+
 ## 它回答什么
 
 | 卡片 | 内容 | 方法 |
