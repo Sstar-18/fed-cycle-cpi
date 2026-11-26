@@ -1,0 +1,12 @@
+# 构建产物
+android/build/
+build/
+*.apk
+*.idsig
+*.keystore
+
+# 本地过程文件
+_shots/
+__pycache__/
+*.pyc
+.DS_Store

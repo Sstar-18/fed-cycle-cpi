@@ -1,0 +1,645 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>美联储利率周期 × 中国 CPI 分析看板</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' fill='%23F7F3EA'/%3E%3Cpath d='M3 15 L8 9 L13 13 L21 5' stroke='%23A9443C' stroke-width='2' fill='none'/%3E%3Ccircle cx='21' cy='5' r='2' fill='%23A9443C'/%3E%3C/svg%3E">
+<script src="echarts.min.js"></script>
+<style>
+  :root{
+    --paper:#F7F3EA; --paper2:#EFE8DA; --ink:#232019; --ink2:#5F574C;
+    --muted:#8D8478; --line:#DED3BF; --hike:#A9443C; --cut:#2F6B5A; --gold:#C79A4B;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--paper);color:var(--ink);
+    font-family:"Songti SC","Noto Serif SC",Georgia,"Microsoft YaHei",serif;
+    -webkit-font-smoothing:antialiased}
+  .wrap{width:100%;max-width:1180px;margin:0 auto;padding:34px 22px 56px}
+  header{border-bottom:1px solid var(--line);padding-bottom:20px}
+  .eyebrow{font-size:11px;letter-spacing:.32em;color:var(--muted)}
+  h1{font-size:clamp(26px,4.2vw,42px);line-height:1.22;margin:12px 0 10px;font-weight:600}
+  h1 em{font-style:normal;color:var(--hike)}
+  .sub{font-size:13px;color:var(--ink2);line-height:1.8;max-width:760px}
+  .sub b{color:var(--ink);font-weight:600}
+
+  /* ===== 本轮周期 · 转折与剩余时长 ===== */
+  .now{margin:24px 0 2px;border:1px solid var(--line);background:#FDFAF2;padding:20px 20px 14px}
+  .now-lab{display:flex;justify-content:space-between;align-items:baseline;gap:12px;
+    font-size:10.5px;letter-spacing:.16em;color:var(--muted)}
+  .now-lab b{letter-spacing:.04em;font-weight:400;color:var(--ink2)}
+  .now-grid{display:grid;grid-template-columns:.9fr 1.15fr 1.05fr;gap:24px;margin-top:14px}
+  .now .k{font-size:10.5px;letter-spacing:.1em;color:var(--muted)}
+  .now #now-rem{font-size:clamp(30px,4.6vw,46px)}
+  .now .big{font-size:clamp(24px,3.4vw,36px);line-height:1.15;font-weight:600;margin:6px 0 5px;letter-spacing:-.01em}
+  .now .big small{font-size:13px;font-weight:400;color:var(--ink2);margin-left:5px}
+  .now .meta{font-size:12px;color:var(--ink2);line-height:1.75}
+  .now .meta b{color:var(--ink);font-weight:600}
+  .now .div{border-left:1px solid var(--line);padding-left:24px}
+  .probs .row{display:grid;grid-template-columns:64px 1fr 42px;align-items:center;gap:9px;margin-top:9px;font-size:12px;color:var(--ink2)}
+  .probs .track{height:6px;background:#E7DDCB;position:relative}
+  .probs .fill{position:absolute;left:0;top:0;bottom:0;background:var(--hike);opacity:.7}
+  .probs .row b{text-align:right;color:var(--ink);font-variant-numeric:tabular-nums}
+/* 下一次会议方向 */
+  .next{margin-top:16px;padding-top:12px;border-top:1px solid var(--line)}
+  .next-head{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+  .next-head .k{font-size:10.5px;letter-spacing:.1em;color:var(--muted)}
+  .next-head .t{font-size:12.5px;color:var(--ink2)}
+  .stack{display:flex;height:12px;margin-top:9px;background:#E7DDCB;overflow:hidden}
+  .stack i{display:block;height:100%}
+  .stack .h{background:var(--hike)} .stack .n{background:var(--gold)} .stack .c{background:var(--cut)}
+  .next-legend{display:flex;flex-wrap:wrap;gap:18px;margin-top:8px;font-size:12px;color:var(--ink2)}
+  .next-legend b{color:var(--ink);font-variant-numeric:tabular-nums}
+  .next-legend .sw{display:inline-block;width:14px;height:3px;vertical-align:middle;margin-right:5px}
+  .dur{margin-top:16px;padding-top:12px;border-top:1px solid var(--line)}
+  .dur-top{display:flex;justify-content:space-between;gap:10px;font-size:10.5px;color:var(--muted)}
+  .dur-plot{position:relative;height:62px;margin-top:4px}
+  .dur-axis{position:absolute;left:0;right:0;bottom:15px;height:1px;background:var(--line)}
+  .dur-tick{position:absolute;bottom:0;font-size:10px;color:var(--muted);transform:translateX(-50%)}
+  .dur-dot{position:absolute;width:7px;height:7px;border-radius:50%;background:var(--hike);opacity:.5;transform:translateX(-50%)}
+  .dur-med{position:absolute;bottom:13px;height:28px;border-left:1px dashed #A9443C;opacity:.5;transform:translateX(-50%)}
+  .dur-now{position:absolute;bottom:13px;width:2px;height:34px;background:var(--ink);transform:translateX(-50%)}
+  .dur-now span{position:absolute;bottom:36px;left:50%;transform:translateX(-50%);
+    font-size:10px;white-space:nowrap;color:var(--ink);background:#FDFAF2;padding:0 3px}
+  .now-note{margin:8px 0 0;font-size:11.5px;color:var(--ink2);line-height:1.8}
+  .now-note b{color:var(--ink)}
+  .now-src{margin:10px 0 0;padding-top:8px;border-top:1px dashed var(--line);
+    font-size:10px;color:var(--muted);line-height:1.7}
+  @media (max-width:760px){
+    .now{padding:16px 14px 12px}
+    .now-grid{grid-template-columns:1fr;gap:16px}
+    .now .div{border-left:0;border-top:1px solid var(--line);padding-left:0;padding-top:14px}
+    .now .big{font-size:30px}
+  }
+
+  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:0;margin:26px 0 6px;border-top:1px solid var(--line)}
+  .kpi{padding:14px 16px 14px 0;border-right:1px solid var(--line)}
+  .kpi:last-child{border-right:0}
+  .kpi .lab{font-size:10.5px;letter-spacing:.1em;color:var(--muted)}
+  .kpi .val{font-size:clamp(20px,2.8vw,30px);font-weight:600;margin-top:6px;letter-spacing:-.01em}
+  .kpi .val small{font-size:12px;color:var(--muted);margin-left:3px;font-weight:400}
+  .kpi .note{font-size:11.5px;color:var(--ink2);margin-top:3px}
+  .kpi.hike .val{color:var(--hike)} .kpi.cut .val{color:var(--cut)}
+  .panel{margin-top:30px;border-top:1px solid var(--line);padding-top:22px}
+  .panel-head{display:flex;flex-wrap:wrap;align-items:baseline;gap:10px 18px;margin-bottom:14px}
+  .panel-head h2{font-size:17px;margin:0;font-weight:600}
+  .panel-head .hint{font-size:11.5px;color:var(--muted)}
+  .toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:10px}
+  .seg{display:flex;border:1px solid var(--line);border-radius:2px;overflow:hidden}
+  .seg button{appearance:none;border:0;background:transparent;color:var(--ink2);
+    font-family:inherit;font-size:12.5px;padding:9px 15px;min-height:42px;min-width:44px;cursor:pointer;border-right:1px solid var(--line)}
+  .seg button:last-child{border-right:0}
+  .seg button[aria-pressed="true"]{background:var(--ink);color:var(--paper)}
+  .tog{appearance:none;border:1px solid var(--line);background:transparent;color:var(--ink2);
+    font-family:inherit;font-size:12.5px;padding:8px 14px;min-height:42px;min-width:44px;cursor:pointer;border-radius:2px}
+  .tog[aria-pressed="true"]{border-color:var(--ink);color:var(--ink);background:#fff}
+  .tog:hover,.seg button:hover{background:rgba(35,32,25,.05)}
+  .ghost{margin-left:auto;appearance:none;border:0;background:transparent;color:var(--hike);
+    font-family:inherit;font-size:12.5px;cursor:pointer;text-decoration:underline;text-underline-offset:3px;min-height:42px;padding:0 4px}
+  @media (max-width:760px){ .ghost{min-height:44px} }
+  #chart{width:100%;height:clamp(300px,46vw,470px)}
+  .legend{display:flex;flex-wrap:wrap;gap:16px;margin-top:8px;font-size:11.5px;color:var(--ink2)}
+  .legend i{display:inline-block;width:16px;height:3px;margin-right:6px;vertical-align:middle}
+  .legend .band{width:14px;height:10px;opacity:.55}
+  .duo{display:grid;grid-template-columns:1fr 1fr;gap:22px;margin-top:28px}
+  .duo .box{border-left:2px solid var(--line);padding:2px 0 2px 16px}
+  .duo .box.h{border-color:var(--hike)} .duo .box.c{border-color:var(--cut)}
+  .box .k{font-size:10.5px;letter-spacing:.12em;color:var(--muted)}
+  .box .big{font-size:24px;font-weight:600;margin:4px 0 2px}
+  .box .txt{font-size:12px;color:var(--ink2);line-height:1.75}
+  .swipe-hint{display:none;font-size:11px;color:var(--muted);margin:2px 0 0}
+  .tablewrap{width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch}
+  table{width:100%;border-collapse:collapse;margin-top:6px;table-layout:fixed;font-size:12.5px}
+  th,td{text-align:left;padding:9px 6px;border-bottom:1px solid var(--line);white-space:nowrap}
+  th{font-size:10.5px;letter-spacing:.08em;color:var(--muted);font-weight:400}
+  td.num{font-variant-numeric:tabular-nums}
+  .chip{display:inline-block;font-size:10.5px;padding:2px 7px;border-radius:2px;letter-spacing:.04em}
+  .chip.up{background:rgba(169,68,60,.1);color:var(--hike)}
+  .chip.down{background:rgba(47,107,90,.1);color:var(--cut)}
+  tr.now{background:#fff}
+  tr.now td::after{content:"";}
+  .now-tag{font-size:10px;color:var(--gold);border:1px solid var(--gold);padding:1px 5px;margin-left:6px;border-radius:2px}
+  footer{margin-top:34px;border-top:1px solid var(--line);padding-top:14px;font-size:11px;color:var(--muted);line-height:1.9}
+  @media (max-width:760px){
+    .wrap{padding:24px 16px 44px}
+    .sub{font-size:14px;line-height:1.85}
+    .kpis{grid-template-columns:1fr 1fr}
+    .kpi{border-right:0;border-bottom:1px solid var(--line);padding-right:10px}
+    .kpi .note{font-size:12.5px}
+    .panel-head .hint{font-size:12px}
+    .duo{grid-template-columns:1fr}
+    .duo .big{font-size:22px}
+    table{font-size:12px;min-width:560px}
+    th,td{padding:9px 4px}
+    .ghost{margin-left:0}
+    #chart{height:360px}
+    .seg button,.tog{min-height:44px}
+    .swipe-hint{display:block}
+  }
+  @media (max-width:760px){
+    .now-lab{flex-direction:column;align-items:flex-start;gap:7px}
+    .now-act{width:100%;justify-content:flex-start;flex-wrap:wrap;row-gap:8px}
+    .now-model{display:none}
+    .now-act b{display:none}
+    .stat{max-width:calc(100% - 130px)}
+  }
+  .reason{display:none;margin:12px 0 2px;padding:9px 12px;border-left:2px solid var(--hike);
+    background:#FBF4E8;font-size:11.5px;line-height:1.75;color:#7C3A33}
+  .reason b{font-weight:600;color:var(--hike);letter-spacing:.02em}
+  .reason .rlink{color:var(--ink2);border-bottom:1px dotted var(--muted);margin-left:4px;white-space:nowrap}
+  .src-note{font-size:10.5px;color:var(--muted);margin-top:10px;line-height:1.7}
+  .fc{margin:20px 0 4px;padding-top:16px;border-top:1px solid var(--line);
+    display:flex;align-items:baseline;gap:20px;flex-wrap:wrap}
+  .fc .k{font-size:10.5px;letter-spacing:.12em;color:var(--muted);width:100%}
+  .fc-row{display:flex;align-items:flex-end;gap:22px;flex-wrap:wrap;width:100%}
+  .fnum b{font-size:24px;font-weight:600;letter-spacing:-.01em}
+  .fnum small{font-size:11px;color:var(--ink2);margin-left:2px}
+  .fnum span{display:block;font-size:10.5px;color:var(--muted);margin-top:2px}
+  .fc svg{display:block;width:100%;max-width:360px;height:auto}
+  .fc .r{font-size:11.5px;color:var(--ink2);line-height:1.75;max-width:58ch;width:100%}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div class="eyebrow">MACRO CYCLE · 宏观周期对照</div>
+  <h1>美国政策利率的 <em>加降息周期</em><br>与中国的 <em>CPI</em> 曲线</h1>
+  <p class="sub">把美联储联邦基金目标利率（上沿）与中国居民消费价格指数同比放在同一条时间轴上。数据为月度口径，区间 <b>2008-01 — 2026-10</b>，共 <b>226 个月</b>，利率按“该月最后一个观测值”取整月，CPI 同比经 AkShare（<code>macro_china_cpi</code>）取自国家统计局，利率取 FRED 官方日频序列；据此切出 <b>11 轮</b>连续加息或降息周期。</p>
+</header>
+<!-- ===== 本轮周期 · 转折与剩余时长（首屏最显眼） ===== -->
+<section class="now" aria-label="本轮加息周期转折与剩余时长">
+  <div class="now-lab"><span>本轮周期 · 转折与剩余时长</span><span class="now-act"><b>经验生存模型</b> <span class="now-model">· 1982 年至今</span>
+      <button class="mini" id="fw-refresh" type="button">刷新方向</button>
+      <span class="stat" id="fw-status" data-state="snap">快照 11-26</span>
+    </span></div>
+  <div id="fw-reason" class="reason" role="status"></div>
+  <div class="now-grid">
+    <div>
+      <div class="k">当前阶段</div>
+      <div class="big" id="now-phase">加息中</div>
+      <div class="meta" id="now-state"></div>
+    </div>
+    <div class="div">
+      <div class="k">预计剩余时长（中位）</div>
+      <div class="big" id="now-rem">3<small>个月</small></div>
+      <div class="meta" id="now-window"></div>
+    </div>
+    <div class="div">
+      <div class="k">本轮结束的概率</div>
+      <div class="probs" id="now-probs"></div>
+      <div class="meta" id="now-tail" style="margin-top:9px"></div>
+    </div>
+  </div>
+
+
+  <div class="next">
+    <div class="next-head">
+      <span class="k">下一次会议方向 · <span id="meet-date">2026-12-09</span></span>
+      <span class="t">下次会议 · <span id="meet-asof">2026-11-26</span></span>
+    </div>
+    <div class="stack" id="meet-stack" role="img" aria-label="下一次会议加息/不变/降息概率"></div>
+    <div class="next-legend" id="meet-legend"></div>
+    <div class="src-note" id="meet-src">方向取自芝商所 11-26 快照 · <span class="rlink" id="fw-open">芝商所官网 ↗</span></div>
+  </div>
+  <div class="dur">
+    <div class="dur-top"><span id="dur-title"></span><span id="dur-sum"></span></div>
+    <div class="dur-plot" id="dur-plot"><div class="dur-axis"></div></div>
+  </div>
+  <p class="now-note">同类周期其实分两类：<b>+25bp 级“小幅加息”4 轮</b>，只持续 2—4 个月——本轮已走 4 个月，已到该类上界；<b>+100bp 以上“完整紧缩”10 轮</b>，中位 13.5 个月、幅度中位 +219bp。7 个月这个中位数是两类混在一起的结果，看剩余时长时请同时对照这条分界线。</p>
+  <p class="now-src">数据来源：FRED <code>DFEDTAR</code>（1982-09—2008-12）与 <code>DFEDTARU</code>（2008-12—2026-11）月度末值。
+    方法：连续同向变动为一段，同向且间隔 ≤12 个月并为一轮，共 30 轮、其中加息 14 轮；
+    按“已走月数后的条件存活率”给出经验概率。样本量小，仅作分布参考，不构成预测或投资建议。下一次会议方向改由 Polymarket 预测市场的公开接口读取（市场价，非芝商所口径，通常相差 1—5 个百分点），
+    失败时保留上次成功的数值；从未刷新过则显示芝商所 11-26 快照。
+    趋势预测用历史条件分布：取所有「CPI≤1%」的月份，统计其后 3/6/12 个月的同比变化分位，再叠加到当前 0.7% 上。</p>
+</section>
+
+
+
+<section class="kpis">
+  <div class="kpi">
+    <div class="lab">当前联邦基金利率</div>
+    <div class="val" id="k-rate">4.00<small>%</small></div>
+    <div class="note" id="k-rate-note">2026-11 · 目标区间上沿</div>
+  </div>
+  <div class="kpi">
+    <div class="lab">当前中国 CPI 同比</div>
+    <div class="val" id="k-cpi">0.7<small>%</small></div>
+    <div class="note" id="k-cpi-note">2026-10 · 全国同比</div>
+  </div>
+  <div class="kpi hike">
+    <div class="lab">最近一轮</div>
+    <div class="val" id="k-last">+25<small>bp</small></div>
+    <div class="note" id="k-last-note">2026-08 → 09 加息</div>
+  </div>
+  <div class="kpi">
+    <div class="lab">同期相关系数</div>
+    <div class="val">−0.30</div>
+    <div class="note">月度水平值，仅作参考</div>
+  </div>
+</section>
+
+<section class="fc" aria-label="CPI 趋势预测">
+  <div class="k">CPI 趋势 · 低位之后的中位路径（历史条件分布）</div>
+  <div class="fc-row">
+    <div class="fnum"><b>0.9</b><small>%</small><span>3 个月 · 0.4–1.5</span></div>
+    <div class="fnum"><b>1.1</b><small>%</small><span>6 个月 · 0.6–1.7</span></div>
+    <div class="fnum"><b>1.7</b><small>%</small><span>12 个月 · 0.9–2.4</span></div>
+  </div>
+  <svg viewBox="0 0 330 96" role="img" aria-label="未来 12 个月 CPI 中位路径与四分位区间">
+    <path d="M 0.0 73.6L 27.5 63.8L 55.0 54.0L 82.5 44.2L 110.0 41.7L 137.5 39.3L 165.0 36.8L 192.5 32.5L 220.0 28.2L 247.5 23.9L 275.0 19.6L 302.5 15.3L 330.0 11.0 330.0 66.2L 302.5 68.1L 275.0 69.9L 247.5 71.8L 220.0 73.6L 192.5 75.4L 165.0 77.3L 137.5 79.7L 110.0 82.2L 82.5 84.6L 55.0 81.0L 27.5 77.3L 0.0 73.6 Z"
+      fill="#C79A4B" fill-opacity="0.13"/>
+    <path d="M 0.0 73.6L 27.5 71.1L 55.0 68.7L 82.5 66.2L 110.0 64.0L 137.5 61.8L 165.0 59.6L 192.5 55.8L 220.0 52.0L 247.5 48.2L 275.0 44.4L 302.5 40.6L 330.0 36.8"
+      fill="none" stroke="#A9443C" stroke-width="1.6"/>
+    <line x1="0" y1="73.6" x2="330" y2="73.6" stroke="#D8CDB9" stroke-width="0.8" stroke-dasharray="3 4"/>
+    <text x="0" y="8" font-size="9" fill="#8A8375">CPI 同比 %</text>
+    <text x="0" y="94" font-size="9" fill="#8A8375">今天 0.7</text>
+    <text x="288" y="94" font-size="9" fill="#8A8375">+12 月</text>
+  </svg>
+  <div class="r">判断：<b>低位之后温和回升</b>，不是继续下探。口径：历史上 60 个「CPI 同比 ≤1%」的月份，
+    3 / 6 / 12 个月后的同比变化中位数为 <b>+0.2 / +0.4 / +1.0pp</b>，括号内为四分位（25–75%）。
+    样本含 2008–09 通缩和 2019–20 猪周期，尾部很宽，只作趋势参考，不是点位承诺。</div>
+</section>
+
+<section class="panel">
+  <div class="panel-head">
+    <h2>政策利率与 CPI 同比</h2>
+    <span class="hint">左轴 CPI 同比（%）；右轴联邦基金目标利率（%）；底色为连续同向变动切出的周期</span>
+  </div>
+  <div class="toolbar">
+    <div class="seg" id="range">
+      <button data-r="all" aria-pressed="true">全部</button>
+      <button data-r="120" aria-pressed="false">近 10 年</button>
+      <button data-r="60" aria-pressed="false">近 5 年</button>
+      <button data-r="36" aria-pressed="false">近 3 年</button>
+    </div>
+    <button class="tog" id="toggleBands" aria-pressed="true">周期底色</button>
+    <button class="tog" id="toggleCpi" aria-pressed="true">CPI 曲线</button>
+    <button class="ghost" id="dl">导出数据 CSV</button>
+  </div>
+  <div id="chart" role="img" aria-label="美联储政策利率与中国CPI同比的时间序列图"></div>
+  <div class="legend">
+    <span><i style="background:#A9443C"></i>联邦基金利率（右轴）</span>
+    <span><i style="background:#C79A4B"></i>中国 CPI 同比（左轴）</span>
+    <span><i class="band" style="background:rgba(169,68,60,.18)"></i>加息期</span>
+    <span><i class="band" style="background:rgba(47,107,90,.18)"></i>降息期</span>
+  </div>
+</section>
+
+<section class="duo">
+  <div class="box h">
+    <div class="k">加息期 · CPI 加权均值</div>
+    <div class="big" id="d-up">1.66%</div>
+    <div class="txt" id="d-up-txt">5 轮加息合计 +775bp，期间中国 CPI 同比平均只有 1.66%。</div>
+  </div>
+  <div class="box c">
+    <div class="k">降息期 · CPI 加权均值</div>
+    <div class="big" id="d-down">2.71%</div>
+    <div class="txt" id="d-down-txt">6 轮降息合计 −675bp，期间中国 CPI 同比平均 2.71%，反而更高。</div>
+  </div>
+</section>
+
+<section class="panel">
+  <div class="panel-head">
+    <h2>11 轮周期的逐轮明细</h2>
+    <span class="hint">按月度利率变化切分；相邻同向变动间隔 ≤3 个月平台期并为一轮</span>
+  </div>
+  <div class="swipe-hint">表格可左右滑动，查看全部六列 →</div>
+  <div class="tablewrap">
+  <table>
+    <colgroup><col style="width:14%"><col style="width:25%"><col style="width:16%"><col style="width:12%"><col style="width:12%"><col style="width:21%"></colgroup>
+    <thead>
+      <tr><th>方向</th><th>起止（月）</th><th>利率变化</th><th>累计</th><th>时长</th><th>同期 CPI 均值</th></tr>
+    </thead>
+    <tbody id="tbody"></tbody>
+  </table>
+  </div>
+</section>
+
+<footer>
+  数据口径：中国 CPI 同比（全国）经 <code>akshare.macro_china_cpi</code> 取自国家统计局，月度，2008-01 起；联邦基金目标利率上沿取自 FRED <code>DFEDTAR</code>（1982–2008）与 <code>DFEDTARU</code>（2008-12-16 至今），按“该月最后一个观测值”折算为月度。利率不用 AkShare 的 <code>macro_bank_usa_interest_rate</code>：该接口在 akshare 1.20.42 已移除，其金十镜像只更新到 2025-10 且末条为空值，无法给出 2026 年的真值。
+  这是价格水平与政策利率的并列观察，不是因果结论：中国 CPI 主要由国内食品、猪周期、地产与内需驱动，与美国利率无直接传导，相关系数 −0.30 只说明“不同步”，不能当作预测依据。
+</footer>
+
+</div>
+<script>
+/* ===== 数据：月度口径，2008-01 起 =====
+   months: YYYY-MM；cpi: 中国 CPI 同比 %；rate: 联邦基金目标利率上沿 %
+   cycles: 连续同向变动切出的周期段 */
+var MEETING = {"date":"2026-12-09","asOf":"2026-11-26","hike":0.978,"hold":0.022,"cut":0.0,"source":"CME FedWatch"};
+var CYCLE = {"asOf":"2026-11","current":{"start":"2026-08","elapsed":4,"bp":25,"dir":"up"},"forecast":{"remMed":3.0,"remLo":0,"remHi":12,"endWithin3":0.33,"endWithin6":0.33,"endWithin12":0.67,"continue12":0.33},"survival":[{"t":1,"s":1.0},{"t":2,"s":1.0},{"t":3,"s":0.929},{"t":4,"s":0.714},{"t":5,"s":0.643},{"t":6,"s":0.643},{"t":7,"s":0.571},{"t":8,"s":0.429},{"t":9,"s":0.429},{"t":10,"s":0.429},{"t":11,"s":0.429},{"t":12,"s":0.429},{"t":13,"s":0.429},{"t":14,"s":0.357},{"t":15,"s":0.286},{"t":16,"s":0.286},{"t":17,"s":0.214},{"t":18,"s":0.214},{"t":19,"s":0.143},{"t":20,"s":0.143},{"t":21,"s":0.143},{"t":22,"s":0.143},{"t":23,"s":0.143},{"t":24,"s":0.143},{"t":25,"s":0.143},{"t":26,"s":0.143},{"t":27,"s":0.071},{"t":28,"s":0.071},{"t":29,"s":0.071},{"t":30,"s":0.071},{"t":31,"s":0.071},{"t":32,"s":0.071},{"t":33,"s":0.071},{"t":34,"s":0.071},{"t":35,"s":0.071},{"t":36,"s":0.071},{"t":37,"s":0.071},{"t":38,"s":0.071}],"history":{"from":"1982-09","to":"2026-11","cycles":30,"sameDir":14,"medDur":7.0,"q1":3,"q3":16,"medBp":137,"minDur":2,"maxDur":38},"samples":[{"dir":"up","start":"1983-02","end":"1983-08","len":7,"bp":100},{"dir":"up","start":"1984-02","end":"1984-08","len":7,"bp":212},{"dir":"up","start":"1984-12","end":"1985-03","len":4,"bp":38},{"dir":"up","start":"1985-07","end":"1985-09","len":3,"bp":25},{"dir":"up","start":"1986-04","end":"1986-06","len":3,"bp":12},{"dir":"up","start":"1986-12","end":"1987-05","len":6,"bp":88},{"dir":"up","start":"1987-07","end":"1987-09","len":3,"bp":69},{"dir":"up","start":"1988-02","end":"1989-05","len":16,"bp":331},{"dir":"up","start":"1994-01","end":"1995-02","len":14,"bp":300},{"dir":"up","start":"1997-02","end":"1997-03","len":2,"bp":25},{"dir":"up","start":"1999-05","end":"2000-05","len":13,"bp":175},{"dir":"up","start":"2004-05","end":"2006-06","len":26,"bp":425},{"dir":"up","start":"2015-11","end":"2018-12","len":38,"bp":225},{"dir":"up","start":"2022-02","end":"2023-07","len":18,"bp":525}]};
+var DATA = {"months":["2008-01","2008-02","2008-03","2008-04","2008-05","2008-06","2008-07","2008-08","2008-09","2008-10","2008-11","2008-12","2009-01","2009-02","2009-03","2009-04","2009-05","2009-06","2009-07","2009-08","2009-09","2009-10","2009-11","2009-12","2010-01","2010-02","2010-03","2010-04","2010-05","2010-06","2010-07","2010-08","2010-09","2010-10","2010-11","2010-12","2011-01","2011-02","2011-03","2011-04","2011-05","2011-06","2011-07","2011-08","2011-09","2011-10","2011-11","2011-12","2012-01","2012-02","2012-03","2012-04","2012-05","2012-06","2012-07","2012-08","2012-09","2012-10","2012-11","2012-12","2013-01","2013-02","2013-03","2013-04","2013-05","2013-06","2013-07","2013-08","2013-09","2013-10","2013-11","2013-12","2014-01","2014-02","2014-03","2014-04","2014-05","2014-06","2014-07","2014-08","2014-09","2014-10","2014-11","2014-12","2015-01","2015-02","2015-03","2015-04","2015-05","2015-06","2015-07","2015-08","2015-09","2015-10","2015-11","2015-12","2016-01","2016-02","2016-03","2016-04","2016-05","2016-06","2016-07","2016-08","2016-09","2016-10","2016-11","2016-12","2017-01","2017-02","2017-03","2017-04","2017-05","2017-06","2017-07","2017-08","2017-09","2017-10","2017-11","2017-12","2018-01","2018-02","2018-03","2018-04","2018-05","2018-06","2018-07","2018-08","2018-09","2018-10","2018-11","2018-12","2019-01","2019-02","2019-03","2019-04","2019-05","2019-06","2019-07","2019-08","2019-09","2019-10","2019-11","2019-12","2020-01","2020-02","2020-03","2020-04","2020-05","2020-06","2020-07","2020-08","2020-09","2020-10","2020-11","2020-12","2021-01","2021-02","2021-03","2021-04","2021-05","2021-06","2021-07","2021-08","2021-09","2021-10","2021-11","2021-12","2022-01","2022-02","2022-03","2022-04","2022-05","2022-06","2022-07","2022-08","2022-09","2022-10","2022-11","2022-12","2023-01","2023-02","2023-03","2023-04","2023-05","2023-06","2023-07","2023-08","2023-09","2023-10","2023-11","2023-12","2024-01","2024-02","2024-03","2024-04","2024-05","2024-06","2024-07","2024-08","2024-09","2024-10","2024-11","2024-12","2025-01","2025-02","2025-03","2025-04","2025-05","2025-06","2025-07","2025-08","2025-09","2025-10","2025-11","2025-12","2026-01","2026-02","2026-03","2026-04","2026-05","2026-06","2026-07","2026-08","2026-09","2026-10"],"cpi":[7.08,8.74,8.31,8.48,7.72,7.08,6.3,4.9,4.64,3.97,2.43,1.2,0.95,-1.56,-1.17,-1.5,-1.37,-1.7,-1.81,-1.2,-0.79,-0.53,0.56,1.86,1.53,2.7,2.37,2.81,3.06,2.95,3.3,3.48,3.61,4.37,5.12,4.59,4.91,4.94,5.38,5.34,5.51,6.36,6.45,6.15,6.07,5.5,4.22,4.07,4.55,3.16,3.59,3.37,3.0,2.15,1.8,2.0,1.9,1.7,2.0,2.5,2.0,3.2,2.1,2.4,2.1,2.7,2.7,2.6,3.1,3.2,3.0,2.5,2.5,2.0,2.4,1.8,2.5,2.3,2.3,2.0,1.6,1.6,1.4,1.5,0.8,1.4,1.4,1.5,1.2,1.4,1.6,2.0,1.6,1.3,1.5,1.6,1.8,2.3,2.3,2.3,2.0,1.9,1.8,1.3,1.9,2.1,2.3,2.1,2.5,0.8,0.9,1.2,1.5,1.5,1.4,1.8,1.6,1.9,1.7,1.8,1.5,2.9,2.1,1.8,1.8,1.9,2.1,2.3,2.5,2.5,2.2,1.9,1.7,1.5,2.3,2.5,2.7,2.7,2.8,2.8,3.0,3.8,4.5,4.5,5.4,5.2,4.3,3.3,2.4,2.5,2.7,2.4,1.7,0.5,-0.5,0.2,-0.3,-0.2,0.4,0.9,1.3,1.1,1.0,0.8,0.7,1.5,2.3,1.5,0.9,0.9,1.5,2.1,2.1,2.5,2.7,2.5,2.8,2.1,1.6,1.8,2.1,1.0,0.7,0.1,0.2,0.0,-0.3,0.1,0.0,-0.2,-0.5,-0.3,-0.8,0.7,0.1,0.3,0.3,0.2,0.5,0.6,0.4,0.3,0.2,0.1,0.5,-0.7,-0.1,-0.1,-0.1,0.1,0.0,-0.4,-0.3,0.2,0.7,0.8,0.2,1.3,1.0,1.2,1.2,1.0,0.5,0.8,0.9,0.7],"rate":[3.0,3.0,2.25,2.0,2.0,2.0,2.0,2.0,2.0,1.0,1.0,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.75,0.75,0.75,1.0,1.0,1.0,1.25,1.25,1.25,1.25,1.25,1.25,1.5,1.5,1.5,1.75,1.75,1.75,2.0,2.0,2.0,2.25,2.25,2.25,2.5,2.5,2.5,2.5,2.5,2.5,2.5,2.5,2.25,2.0,1.75,1.75,1.75,1.75,1.75,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.5,0.5,1.0,1.75,2.5,2.5,3.25,3.25,4.0,4.5,4.5,4.75,5.0,5.0,5.25,5.25,5.5,5.5,5.5,5.5,5.5,5.5,5.5,5.5,5.5,5.5,5.5,5.5,5.5,5.5,5.0,5.0,4.75,4.5,4.5,4.5,4.5,4.5,4.5,4.5,4.5,4.5,4.25,4.0,4.0,3.75,3.75,3.75,3.75,3.75,3.75,3.75,3.75,3.75,4.0,4.0],"cycles":[{"dir":"down","start":"2008-02","end":"2008-04","from":3.0,"to":2.0,"cpi":8.51,"bp":-100,"len":3},{"dir":"down","start":"2008-09","end":"2008-12","from":2.0,"to":0.25,"cpi":3.06,"bp":-175,"len":4},{"dir":"up","start":"2015-11","end":"2015-12","from":0.25,"to":0.5,"cpi":1.55,"bp":25,"len":2},{"dir":"up","start":"2016-11","end":"2017-06","from":0.5,"to":1.25,"cpi":1.6,"bp":75,"len":8},{"dir":"up","start":"2017-11","end":"2018-12","from":1.25,"to":2.5,"cpi":2.07,"bp":125,"len":14},{"dir":"down","start":"2019-07","end":"2019-10","from":2.5,"to":1.75,"cpi":3.1,"bp":-75,"len":4},{"dir":"down","start":"2020-02","end":"2020-03","from":1.75,"to":0.25,"cpi":4.75,"bp":-150,"len":2},{"dir":"up","start":"2022-02","end":"2023-07","from":0.25,"to":5.5,"cpi":1.47,"bp":525,"len":18},{"dir":"down","start":"2024-08","end":"2024-12","from":5.5,"to":4.5,"cpi":0.32,"bp":-100,"len":5},{"dir":"down","start":"2025-08","end":"2025-12","from":4.5,"to":3.75,"cpi":0.2,"bp":-75,"len":5},{"dir":"up","start":"2026-08","end":"2026-09","from":3.75,"to":4.0,"cpi":0.85,"bp":25,"len":2}]};
+
+(function(){
+  var M = DATA.months, C = DATA.cpi, R = DATA.rate, CY = DATA.cycles;
+  var hike = '#A9443C', cut = '#2F6B5A', gold = '#C79A4B', ink = '#232019';
+
+  /* ---------- KPI 与文案用真实数据回填 ---------- */
+  var last = M.length - 1;
+  document.getElementById('k-rate').innerHTML = R[last].toFixed(2) + '<small>%</small>';
+  document.getElementById('k-rate-note').textContent = M[last] + ' · 目标区间上沿';
+  document.getElementById('k-cpi').innerHTML = C[last].toFixed(1) + '<small>%</small>';
+  document.getElementById('k-cpi-note').textContent = M[last] + ' · 全国同比';
+  var cyLast = CY[CY.length - 1];
+  document.getElementById('k-last').innerHTML = (cyLast.bp > 0 ? '+' : '') + cyLast.bp + '<small>bp</small>';
+  document.getElementById('k-last-note').textContent = cyLast.start + ' → ' + cyLast.end + (cyLast.dir === 'up' ? ' 加息' : ' 降息');
+  document.getElementById('k-last').style.color = cyLast.dir === 'up' ? hike : cut;
+
+  var upN = 0, downN = 0, upBp = 0, downBp = 0, upW = 0, downW = 0;
+  CY.forEach(function (c) {
+    if (c.dir === 'up') { upN++; upBp += c.bp; upW += c.len * c.cpi; }
+    else { downN++; downBp += c.bp; downW += c.len * c.cpi; }
+  });
+  var upAvg = (upW / CY.filter(function(c){return c.dir==='up';}).reduce(function(a,c){return a+c.len;},0)).toFixed(2);
+  var downAvg = (downW / CY.filter(function(c){return c.dir==='down';}).reduce(function(a,c){return a+c.len;},0)).toFixed(2);
+  document.getElementById('d-up').textContent = upAvg + '%';
+  document.getElementById('d-down').textContent = downAvg + '%';
+  document.getElementById('d-up-txt').textContent = upN + ' 轮加息合计 +' + upBp + 'bp，期间中国 CPI 同比平均只有 ' + upAvg + '%。';
+  document.getElementById('d-down-txt').textContent = downN + ' 轮降息合计 ' + downBp + 'bp，期间中国 CPI 同比平均 ' + downAvg + '%，反而更高。';
+
+  /* ---------- 周期表 ---------- */
+  var tb = document.getElementById('tbody');
+  CY.forEach(function (c, i) {
+    var tr = document.createElement('tr');
+    if (i === CY.length - 1) tr.className = 'now';
+    tr.innerHTML = '<td><span class="chip ' + (c.dir === 'up' ? 'up' : 'down') + '">' + (c.dir === 'up' ? '加息' : '降息') + (i === CY.length - 1 ? ' · 当前' : '') + '</span></td>' +
+      '<td class="num">' + c.start + ' → ' + c.end + '</td>' +
+      '<td class="num">' + c.from.toFixed(2) + '% → ' + c.to.toFixed(2) + '%</td>' +
+      '<td class="num" style="color:' + (c.dir === 'up' ? hike : cut) + '">' + (c.bp > 0 ? '+' : '') + c.bp + ' bp</td>' +
+      '<td class="num">' + c.len + ' 个月</td>' +
+      '<td class="num">' + c.cpi.toFixed(2) + '%</td>';
+    tb.appendChild(tr);
+  });
+
+  /* ---------- 图表 ---------- */
+  var chart = echarts.init(document.getElementById('chart'), null, { renderer: 'canvas' });
+  var win = M.length;     // 当前窗口长度（月）
+  var showBands = true, showCpi = true;
+
+  function bandData() {
+    var from = M.length - win, prefix = [];
+    return CY.filter(function (c) {
+      return M.indexOf(c.end) >= from;
+    }).map(function (c) {
+      var s = Math.max(M.indexOf(c.start), from);
+      return [
+        { xAxis: M[s], itemStyle: { color: c.dir === 'up' ? 'rgba(169,68,60,.10)' : 'rgba(47,107,90,.10)' } },
+        { xAxis: M[Math.min(M.indexOf(c.end), M.length - 1)],
+          label: { show: c.len >= 15, formatter: (c.dir === 'up' ? '加息 ' : '降息 ') + Math.abs(c.bp) + 'bp',
+                   color: c.dir === 'up' ? 'rgba(169,68,60,.75)' : 'rgba(47,107,90,.75)',
+                   fontSize: 10, position: 'insideTop' } }
+      ];
+    }).concat(prefix);
+  }
+
+  function opt() {
+    var from = M.length - win;
+    return {
+      animationDuration: 500,
+      grid: { left: 46, right: 54, top: 26, bottom: 54 },
+      tooltip: {
+        trigger: 'axis', axisPointer: { type: 'line', lineStyle: { color: 'rgba(35,32,25,.28)' } },
+        backgroundColor: '#FFFDF8', borderColor: '#DED3BF', borderWidth: 1,
+        textStyle: { color: ink, fontSize: 12 },
+        formatter: function (ps) {
+          var m = ps[0].axisValue, i = M.indexOf(m);
+          return '<div style="font-family:Georgia,serif;font-size:12px;color:#8D8478;letter-spacing:.06em">' + m + '</div>' +
+            '<div style="margin-top:4px">中国 CPI 同比 <b style="color:' + gold + '">' + C[i].toFixed(1) + '%</b></div>' +
+            '<div>联邦基金利率 <b style="color:' + hike + '">' + R[i].toFixed(2) + '%</b></div>';
+        }
+      },
+      xAxis: {
+        type: 'category', boundaryGap: false, data: M.slice(from),
+        axisLine: { lineStyle: { color: '#DED3BF' } }, axisTick: { show: false },
+        axisLabel: {
+          color: '#8D8478', fontSize: 11, hideOverlap: true, margin: 12,
+          interval: function (i) { return win <= 72 ? i % (win <= 40 ? 6 : 12) === 0 : i % 12 === 0; },
+          formatter: function (v) { return win <= 72 ? v : v.slice(0, 4); }
+        },
+        splitLine: { show: false }
+      },
+      yAxis: [
+        { type: 'value', name: 'CPI %', nameTextStyle: { color: '#A09789', fontSize: 10, padding: [0, 0, 0, 6] },
+          min: -3, max: 10, axisLabel: { color: '#8D8478', fontSize: 10.5 },
+          axisLine: { show: false }, axisTick: { show: false },
+          splitLine: { lineStyle: { color: 'rgba(35,32,25,.07)' } } },
+        { type: 'value', name: 'FED %', nameTextStyle: { color: '#A09789', fontSize: 10, padding: [0, 8, 0, 0] },
+          min: 0, max: 6.5, axisLabel: { color: '#8D8478', fontSize: 10.5 },
+          axisLine: { show: false }, axisTick: { show: false }, splitLine: { show: false } }
+      ],
+      series: [
+        {
+          name: '中国 CPI 同比', type: 'line', showSymbol: false, smooth: false,
+          data: C.slice(from), lineStyle: { color: gold, width: 2.2 },
+          itemStyle: { color: gold },
+          areaStyle: { color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+            { offset: 0, color: 'rgba(199,154,75,.22)' }, { offset: 1, color: 'rgba(199,154,75,0)' }
+          ]) },
+          markLine: { silent: true, symbol: 'none', lineStyle: { color: 'rgba(35,32,25,.22)', type: 'dashed', width: 1 },
+            label: { show: false }, data: [{ yAxis: 0 }] },
+          markArea: { silent: true, data: showBands ? bandData() : [] },
+          z: 3
+        },
+        {
+          name: '联邦基金利率', type: 'line', step: 'end', showSymbol: false,
+          data: R.slice(from), lineStyle: { color: hike, width: 2.4 }, itemStyle: { color: hike }, z: 4
+        }
+      ]
+    };
+  }
+  chart.setOption(opt());
+  window.addEventListener('resize', function () { chart.resize(); });
+
+  /* ---------- 交互 ---------- */
+  var rangeBox = document.getElementById('range');
+  rangeBox.addEventListener('click', function (e) {
+    var b = e.target.closest('button'); if (!b) return;
+    Array.prototype.forEach.call(rangeBox.querySelectorAll('button'), function (x) {
+      x.setAttribute('aria-pressed', String(x === b));
+    });
+    var r = b.dataset.r;
+    win = (r === 'all') ? M.length : Math.min(parseInt(r, 10), M.length);
+    chart.setOption(opt(), true);
+  });
+
+  document.getElementById('toggleBands').addEventListener('click', function () {
+    showBands = !showBands; this.setAttribute('aria-pressed', String(showBands)); chart.setOption(opt());
+  });
+  document.getElementById('toggleCpi').addEventListener('click', function () {
+    showCpi = !showCpi; this.setAttribute('aria-pressed', String(showCpi));
+    var o = opt(); o.series[0].data = showCpi ? C.slice(M.length - win) : [];
+    o.series[0].areaStyle = showCpi ? o.series[0].areaStyle : { color: 'transparent' };
+    chart.setOption(o);
+  });
+
+  /* ---------- 导出 CSV ---------- */
+  document.getElementById('dl').addEventListener('click', function () {
+    var lines = ['月份,中国CPI同比(%),联邦基金利率(%)'];
+    for (var i = M.length - win; i < M.length; i++) lines.push(M[i] + ',' + C[i].toFixed(1) + ',' + R[i].toFixed(2));
+    var blob = new Blob(['\ufeff' + lines.join('\n')], { type: 'text/csv;charset=utf-8' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'fed_cpi_' + M[M.length - win] + '_' + M[M.length - 1] + '.csv';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(function () { URL.revokeObjectURL(a.href); }, 4000);
+  });
+})();
+</script>
+<script>
+/* ===== 本轮周期面板 ===== */
+(function(){
+  var C = CYCLE, cur = C.current, f = C.forecast, h = C.history;
+  function paintMeeting(M, st){
+    document.getElementById('meet-date').textContent = M.date;
+    document.getElementById('meet-asof').textContent = M.asOf;
+    document.getElementById('meet-stack').innerHTML =
+      '<i class="h" style="width:' + (M.hike * 100) + '%"></i>' +
+      '<i class="n" style="width:' + (M.hold * 100) + '%"></i>' +
+      '<i class="c" style="width:' + (M.cut * 100) + '%"></i>';
+    document.getElementById('meet-legend').innerHTML = [
+      ['h', '加息', M.hike], ['n', '不变', M.hold], ['c', '降息', M.cut]
+    ].map(function (x) {
+      return '<span><i class="sw" style="background:' + (x[0] === 'h' ? '#A9443C' : x[0] === 'n' ? '#C79A4B' : '#2F6B5A') +
+        '"></i>' + x[1] + ' <b>' + Math.round(x[2] * 100) + '%</b></span>';
+    }).join('');
+    var tag = document.getElementById('fw-status');
+    if (tag && st){ tag.textContent = st.text; tag.dataset.state = st.state; }
+  }
+  paintMeeting(MEETING, {text: '快照 11-26', state: 'snap'});
+  window.paintMeeting = paintMeeting;
+
+  var p = cur.start.split('-');
+  function addM(m){
+    var d = new Date(+p[0], +p[1] - 1, 1);
+    d.setMonth(d.getMonth() + m);
+    return d.getFullYear() + '.' + ('0' + (d.getMonth() + 1)).slice(-2);
+  }
+  document.getElementById('now-phase').textContent = cur.dir === 'up' ? '加息中' : '降息中';
+  document.getElementById('now-state').innerHTML =
+    cur.start.replace('-', '.') + ' 起 · 已走 <b>' + cur.elapsed + '</b> 个月 · 累计 <b>' +
+    (cur.bp > 0 ? '+' : '') + cur.bp + 'bp</b>';
+  document.getElementById('now-rem').innerHTML = f.remMed + '<small>个月</small>';
+  document.getElementById('now-window').innerHTML =
+    '已走 <b>' + cur.elapsed + ' / ' + h.medDur + '</b> 个月；中位转折落在 <b>' + addM(h.medDur - 1) +
+    '</b>，多数落在 ' + addM(h.q1 - 1) + ' — ' + addM(h.q3 - 1);
+
+  var rows = [['3 个月内', f.endWithin3], ['6 个月内', f.endWithin6], ['12 个月内', f.endWithin12]];
+  document.getElementById('now-probs').innerHTML = rows.map(function(r){
+    return '<div class="row"><span>' + r[0] + '</span><span class="track"><i class="fill" style="width:' +
+      Math.round(r[1] * 100) + '%"></i></span><b>' + Math.round(r[1] * 100) + '%</b></div>';
+  }).join('');
+  document.getElementById('now-tail').innerHTML =
+    '12 个月后仍在本轮中：<b>' + Math.round(f.continue12 * 100) + '%</b>；本轮累计 <b>' +
+    (cur.bp > 0 ? '+' : '') + cur.bp + 'bp</b>，历史同类中位 <b>+' + h.medBp + 'bp</b>';
+
+  document.getElementById('dur-title').textContent = '同类 ' + h.sameDir + ' 轮加息的持续时长（每点一轮，单位：月，2008 年后含本轮）';
+  document.getElementById('dur-sum').textContent = '中位 ' + h.medDur + ' 个月 · 本轮已 ' + cur.elapsed + ' 个月';
+
+  var MAX = 40, plot = document.getElementById('dur-plot');
+  var med = document.createElement('div');
+  med.className = 'dur-med'; med.style.left = (h.medDur / MAX * 100) + '%'; plot.appendChild(med);
+  for (var t = 0; t <= MAX; t += 10){
+    var tk = document.createElement('div');
+    tk.className = 'dur-tick'; tk.style.left = (t / MAX * 100) + '%'; tk.textContent = t + ' 月';
+    plot.appendChild(tk);
+  }
+  (C.samples || []).forEach(function(c, i){
+    var d = document.createElement('div');
+    d.className = 'dur-dot';
+    d.style.left = Math.min(c.len / MAX * 100, 97) + '%';
+    d.style.bottom = (17 + (i % 3) * 10) + 'px';
+    d.title = c.start + ' → ' + c.end + '，' + c.len + ' 个月，' + c.bp + 'bp';
+    plot.appendChild(d);
+  });
+  var now = document.createElement('div');
+  now.className = 'dur-now';
+  now.style.left = (cur.elapsed / MAX * 100) + '%';
+  now.innerHTML = '<span>本轮 ' + cur.elapsed + ' 个月</span>';
+  plot.appendChild(now);
+})();
+</script>
+<script>
+/* ===== 方向：Polymarket 市场价（手动刷新） ===== */
+(function(){
+  var btn = document.getElementById('fw-refresh');
+  var tag = document.getElementById('fw-status');
+  var reasonEl = document.getElementById('fw-reason');
+  var srcEl = document.getElementById('meet-src');
+  var asofEl = document.getElementById('meet-asof');
+  var dateEl = document.getElementById('meet-date');
+  var canDetail = !!(window.FedBridge && typeof FedBridge.detail === 'function');
+
+  function fmt(iso){
+    if (!iso) return '';
+    var d = iso.slice(5, 10).replace('-', '.') + ' ' + iso.slice(11, 16);
+    return d;
+  }
+  function setTag(t, st){ tag.textContent = t; tag.dataset.state = st; }
+  function showReason(t){
+    if (!reasonEl) return;
+    reasonEl.innerHTML = '<b>未更新：</b>' + String(t).replace(/</g, '&lt;') +
+      (canDetail ? ' <span class="rlink">看诊断 →</span>' : '');
+    reasonEl.style.display = 'block';
+  }
+  function hideReason(){ if (reasonEl) reasonEl.style.display = 'none'; }
+
+  paintMeeting(MEETING, {text: '快照 11-26', state: 'snap'});
+
+  window.onFedWatchData = function(payload){
+    var d;
+    try { d = (typeof payload === 'string') ? JSON.parse(payload) : payload; }
+    catch (e) { d = {ok:false, reason:'返回解析失败'}; }
+    if (window.__fwResolve) { var fn = window.__fwResolve; window.__fwResolve = null; fn(d); }
+  };
+  var busy = false;
+  function request(){
+    if (!window.FedBridge) return Promise.reject(new Error('没有原生桥'));
+    return new Promise(function(resolve){
+      window.__fwResolve = resolve;
+      try { FedBridge.refresh(); } catch (e) { resolve({ok:false, reason:String(e)}); }
+    });
+  }
+  function refresh(){
+    if (busy) return;
+    busy = true; btn.disabled = true;
+    setTag('刷新中…', 'busy');
+    request()
+      .then(function(d){
+        if (!d.ok) {
+          showReason(d.reason || '接口不可用');
+          var hasD = canDetail;
+          var short = /域名解析|Unable to resolve|UnknownHost/i.test(d.reason) ? 'DNS 不通 · 查 VPN'
+                    : /超时|timeout/i.test(d.reason) ? '连接超时 · 查节点'
+                    : /没找到|解析为空|改版/i.test(d.reason) ? '没解析到数据'
+                    : '刷新失败';
+          setTag(short + (hasD ? ' ⓘ' : ''), 'fail');
+          if (hasD) tag.style.cursor = 'pointer';
+          tag.title = d.reason || '';
+          return;
+        }
+        var m = d.meeting;
+        paintMeeting({date: m.date, asOf: fmt(d.asOf), hike: m.hike, hold: m.hold, cut: m.cut},
+                     {text: '实时 · ' + fmt(d.asOf), state: 'live'});
+        hideReason();
+        if (srcEl) srcEl.innerHTML = '方向取自 Polymarket 市场价（非芝商所）· <span class="rlink" id="fw-open">芝商所官网 ↗</span>';
+        bindOpen();
+        tag.title = '';
+      })
+      .catch(function(e){
+        showReason(e.message || e);
+        setTag('刷新失败' + (canDetail ? ' ⓘ' : ''), 'fail');
+      })
+      .finally(function(){ busy = false; btn.disabled = false; });
+  }
+  function bindOpen(){
+    var o = document.getElementById('fw-open');
+    if (o && !o.__b){ o.__b = 1; o.addEventListener('click', function(){ try{ FedBridge.openCme(); }catch(e){} }); }
+  }
+  btn.addEventListener('click', refresh);
+  tag.addEventListener('click', function(){ try{ if (canDetail) FedBridge.detail(); }catch(e){} });
+  if (reasonEl && canDetail) reasonEl.addEventListener('click', function(){ try{ FedBridge.detail(); }catch(e){} });
+  bindOpen();
+})();
+</script>
+</body>
+</html>
